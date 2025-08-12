@@ -396,7 +396,7 @@ func TestDataRepository_Create(t *testing.T) {
 		).
 		WillReturnRows(rows)
 
-	err = repo.Create(context.Background(), data)
+	data, err = repo.Create(context.Background(), data)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedID, data.ID)
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -971,11 +971,12 @@ func TestSyncRepository_CreateEvent(t *testing.T) {
 
 	repo := &syncRepository{db: mock}
 	event := &models.SyncEvent{
-		UserID:  uuid.New(),
-		DataID:  uuid.New(),
-		Action:  "add",
-		Created: time.Now(),
-		Version: 1,
+		UserID:   uuid.New(),
+		DataID:   uuid.New(),
+		Action:   "add",
+		ClientID: "1",
+		Created:  time.Now(),
+		Version:  1,
 	}
 
 	expectedID := int64(1)
@@ -986,6 +987,7 @@ func TestSyncRepository_CreateEvent(t *testing.T) {
 			event.UserID,
 			event.DataID,
 			event.Action,
+			event.ClientID,
 			event.Created,
 			event.Version,
 		).
@@ -1009,25 +1011,27 @@ func TestSyncRepository_GetEventsAfter(t *testing.T) {
 		afterEventID := uuid.New()
 		expectedEvents := []*models.SyncEvent{
 			{
-				ID:      int64(1),
-				UserID:  userID,
-				DataID:  uuid.New(),
-				Action:  "add",
-				Created: time.Now(),
-				Version: 1,
+				ID:       int64(1),
+				UserID:   userID,
+				DataID:   uuid.New(),
+				Action:   "add",
+				ClientID: "1",
+				Created:  time.Now(),
+				Version:  1,
 			},
 			{
-				ID:      int64(2),
-				UserID:  userID,
-				DataID:  uuid.New(),
-				Action:  "update",
-				Created: time.Now().Add(time.Hour),
-				Version: 2,
+				ID:       int64(2),
+				UserID:   userID,
+				DataID:   uuid.New(),
+				Action:   "update",
+				ClientID: "2",
+				Created:  time.Now().Add(time.Hour),
+				Version:  2,
 			},
 		}
 
 		rows := pgxmock.NewRows([]string{
-			"id", "user_id", "data_id", "event_type",
+			"id", "user_id", "data_id", "event_type", "client_id",
 			"timestamp", "data_version",
 		})
 
@@ -1037,6 +1041,7 @@ func TestSyncRepository_GetEventsAfter(t *testing.T) {
 				event.UserID,
 				event.DataID,
 				event.Action,
+				event.ClientID,
 				event.Created,
 				event.Version,
 			)
@@ -1056,7 +1061,7 @@ func TestSyncRepository_GetEventsAfter(t *testing.T) {
 		afterEventID := uuid.New()
 
 		rows := pgxmock.NewRows([]string{
-			"id", "user_id", "data_id", "event_type",
+			"id", "user_id", "data_id", "event_type", "client_id",
 			"timestamp", "data_version",
 		})
 
@@ -1088,13 +1093,14 @@ func TestSyncRepository_GetEventsAfter(t *testing.T) {
 		afterEventID := uuid.New()
 
 		rows := pgxmock.NewRows([]string{
-			"id", "user_id", "data_id", "event_type",
+			"id", "user_id", "data_id", "event_type", "client_id",
 			"timestamp", "data_version",
 		}).AddRow(
 			"invalid-uuid", // Некорректные данные для сканирования
 			userID,
 			uuid.New(),
 			"add",
+			"1",
 			time.Now(),
 			1,
 		)
@@ -1219,25 +1225,27 @@ func TestSyncRepository_GetEventsByDataID(t *testing.T) {
 		dataID := uuid.New()
 		expectedEvents := []*models.SyncEvent{
 			{
-				ID:      int64(1),
-				UserID:  userID,
-				DataID:  dataID,
-				Action:  "update",
-				Created: time.Now(),
-				Version: 1,
+				ID:       int64(1),
+				UserID:   userID,
+				DataID:   dataID,
+				Action:   "update",
+				ClientID: "1",
+				Created:  time.Now(),
+				Version:  1,
 			},
 			{
-				ID:      int64(2),
-				UserID:  userID,
-				DataID:  dataID,
-				Action:  "add",
-				Created: time.Now().Add(time.Hour),
-				Version: 2,
+				ID:       int64(2),
+				UserID:   userID,
+				DataID:   dataID,
+				Action:   "add",
+				ClientID: "2",
+				Created:  time.Now().Add(time.Hour),
+				Version:  2,
 			},
 		}
 
 		rows := pgxmock.NewRows([]string{
-			"id", "user_id", "data_id", "event_type", "timestamp", "data_version",
+			"id", "user_id", "data_id", "event_type", "client_id", "timestamp", "data_version",
 		})
 
 		for _, event := range expectedEvents {
@@ -1246,6 +1254,7 @@ func TestSyncRepository_GetEventsByDataID(t *testing.T) {
 				event.UserID,
 				event.DataID,
 				event.Action,
+				event.ClientID,
 				event.Created,
 				event.Version,
 			)
@@ -1265,7 +1274,7 @@ func TestSyncRepository_GetEventsByDataID(t *testing.T) {
 		dataID := uuid.New()
 
 		rows := pgxmock.NewRows([]string{
-			"id", "user_id", "data_id", "event_type", "timestamp", "data_version",
+			"id", "user_id", "data_id", "event_type", "client_id", "timestamp", "data_version",
 		})
 
 		mock.ExpectQuery("SELECT (.+) FROM sync_events").
@@ -1296,12 +1305,13 @@ func TestSyncRepository_GetEventsByDataID(t *testing.T) {
 		dataID := uuid.New()
 
 		rows := pgxmock.NewRows([]string{
-			"id", "user_id", "data_id", "event_type", "timestamp", "data_version",
+			"id", "user_id", "data_id", "event_type", "client_id", "timestamp", "data_version",
 		}).AddRow(
 			"invalid-uuid", // Invalid UUID that will cause scan error
 			userID,
 			dataID,
 			"add",
+			"1",
 			time.Now(),
 			1,
 		)
