@@ -30,6 +30,7 @@ func TestUserRepository_Create(t *testing.T) {
 
 	repo := &userRepository{db: mock}
 	user := &models.User{
+		Username:     "username",
 		Email:        "test@example.com",
 		PasswordHash: "hash",
 		Salt:         "salt",
@@ -41,7 +42,7 @@ func TestUserRepository_Create(t *testing.T) {
 	rows := pgxmock.NewRows([]string{"id"}).AddRow(expectedID)
 
 	mock.ExpectQuery("INSERT INTO users").
-		WithArgs(user.Email, user.PasswordHash, user.Salt, user.CreatedAt, user.UpdatedAt).
+		WithArgs(user.Username, user.Email, user.PasswordHash, user.Salt, user.CreatedAt, user.UpdatedAt).
 		WillReturnRows(rows)
 
 	err = repo.Create(context.Background(), user)
@@ -60,6 +61,7 @@ func TestUserRepository_GetByID(t *testing.T) {
 	t.Run("successful get", func(t *testing.T) {
 		expectedUser := &models.User{
 			ID:           uuid.New(),
+			Username:     "username",
 			Email:        "test@example.com",
 			PasswordHash: "hash",
 			Salt:         "salt",
@@ -74,9 +76,10 @@ func TestUserRepository_GetByID(t *testing.T) {
 		}
 
 		rows := pgxmock.NewRows([]string{
-			"id", "email", "password_hash", "salt", "created_at", "updated_at", "last_login_at",
+			"id", "username", "email", "password_hash", "salt", "created_at", "updated_at", "last_login_at",
 		}).AddRow(
 			expectedUser.ID,
+			expectedUser.Username,
 			expectedUser.Email,
 			expectedUser.PasswordHash,
 			expectedUser.Salt,
@@ -120,6 +123,7 @@ func TestUserRepository_Update(t *testing.T) {
 	t.Run("successful update", func(t *testing.T) {
 		user := &models.User{
 			ID:           uuid.New(),
+			Username:     "username",
 			Email:        "updated@example.com",
 			PasswordHash: "newhash",
 			Salt:         "newsalt",
@@ -129,6 +133,7 @@ func TestUserRepository_Update(t *testing.T) {
 		mock.ExpectExec("UPDATE users").
 			WithArgs(
 				user.ID,
+				user.Username,
 				user.Email,
 				user.PasswordHash,
 				user.Salt,
@@ -143,6 +148,7 @@ func TestUserRepository_Update(t *testing.T) {
 	t.Run("user not found", func(t *testing.T) {
 		user := &models.User{
 			ID:           uuid.New(),
+			Username:     "username",
 			Email:        "notfound@example.com",
 			PasswordHash: "hash",
 			Salt:         "salt",
@@ -152,6 +158,7 @@ func TestUserRepository_Update(t *testing.T) {
 		mock.ExpectExec("UPDATE users").
 			WithArgs(
 				user.ID,
+				user.Username,
 				user.Email,
 				user.PasswordHash,
 				user.Salt,
@@ -166,6 +173,7 @@ func TestUserRepository_Update(t *testing.T) {
 	t.Run("database error", func(t *testing.T) {
 		user := &models.User{
 			ID:           uuid.New(),
+			Username:     "username",
 			Email:        "error@example.com",
 			PasswordHash: "hash",
 			Salt:         "salt",
@@ -175,6 +183,7 @@ func TestUserRepository_Update(t *testing.T) {
 		mock.ExpectExec("UPDATE users").
 			WithArgs(
 				user.ID,
+				user.Username,
 				user.Email,
 				user.PasswordHash,
 				user.Salt,
@@ -198,6 +207,7 @@ func TestUserRepository_GetByEmail(t *testing.T) {
 	repo := &userRepository{db: mock}
 	expectedUser := &models.User{
 		ID:           uuid.New(),
+		Username:     "username",
 		Email:        "test@example.com",
 		PasswordHash: "hash",
 		Salt:         "salt",
@@ -212,9 +222,10 @@ func TestUserRepository_GetByEmail(t *testing.T) {
 	}
 
 	rows := pgxmock.NewRows([]string{
-		"id", "email", "password_hash", "salt", "created_at", "updated_at", "last_login_at",
+		"id", "username", "email", "password_hash", "salt", "created_at", "updated_at", "last_login_at",
 	}).AddRow(
 		expectedUser.ID,
+		expectedUser.Username,
 		expectedUser.Email,
 		expectedUser.PasswordHash,
 		expectedUser.Salt,
@@ -228,6 +239,51 @@ func TestUserRepository_GetByEmail(t *testing.T) {
 		WillReturnRows(rows)
 
 	user, err := repo.GetByEmail(context.Background(), expectedUser.Email)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedUser, user)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserRepository_GetByUsername(t *testing.T) {
+	mock, err := pgxmock.NewPool()
+	require.NoError(t, err)
+	defer mock.Close()
+
+	repo := &userRepository{db: mock}
+	expectedUser := &models.User{
+		ID:           uuid.New(),
+		Username:     "username",
+		Email:        "test@example.com",
+		PasswordHash: "hash",
+		Salt:         "salt",
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		LastLoginAt:  time.Now(),
+	}
+
+	lastLoginTime := pgtype.Timestamptz{
+		Time:  expectedUser.LastLoginAt,
+		Valid: true,
+	}
+
+	rows := pgxmock.NewRows([]string{
+		"id", "username", "email", "password_hash", "salt", "created_at", "updated_at", "last_login_at",
+	}).AddRow(
+		expectedUser.ID,
+		expectedUser.Username,
+		expectedUser.Email,
+		expectedUser.PasswordHash,
+		expectedUser.Salt,
+		expectedUser.CreatedAt,
+		expectedUser.UpdatedAt,
+		lastLoginTime,
+	)
+
+	mock.ExpectQuery("SELECT (.+) FROM users").
+		WithArgs(expectedUser.Username).
+		WillReturnRows(rows)
+
+	user, err := repo.GetByUsername(context.Background(), expectedUser.Username)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedUser, user)
 	assert.NoError(t, mock.ExpectationsWereMet())

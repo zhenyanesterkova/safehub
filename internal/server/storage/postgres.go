@@ -121,11 +121,12 @@ type userRepository struct {
 
 func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	query := `
-		INSERT INTO users (email, password_hash, salt, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO users (username, email, password_hash, salt, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id`
 
 	err := r.db.QueryRow(ctx, query,
+		user.Username,
 		user.Email,
 		user.PasswordHash,
 		user.Salt,
@@ -140,16 +141,50 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	return nil
 }
 
+func (r *userRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
+	user := &models.User{}
+	query := `
+		SELECT id, username, email, password_hash, salt, created_at, updated_at, last_login_at
+		FROM users 
+		WHERE username = $1`
+
+	var lastLoginAt pgtype.Timestamptz
+	err := r.db.QueryRow(ctx, query, username).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Salt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&lastLoginAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, models.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to get user by username: %w", err)
+	}
+
+	if lastLoginAt.Valid {
+		user.LastLoginAt = lastLoginAt.Time
+	}
+
+	return user, nil
+}
+
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, email, password_hash, salt, created_at, updated_at, last_login_at
+		SELECT id, username, email, password_hash, salt, created_at, updated_at, last_login_at
 		FROM users 
 		WHERE email = $1`
 
 	var lastLoginAt pgtype.Timestamptz
 	err := r.db.QueryRow(ctx, query, email).Scan(
 		&user.ID,
+		&user.Username,
 		&user.Email,
 		&user.PasswordHash,
 		&user.Salt,
@@ -175,13 +210,14 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*models.
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
 	user := &models.User{}
 	query := `
-		SELECT id, email, password_hash, salt, created_at, updated_at, last_login_at
+		SELECT id, username, email, password_hash, salt, created_at, updated_at, last_login_at
 		FROM users 
 		WHERE id = $1`
 
 	var lastLoginAt pgtype.Timestamptz
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&user.ID,
+		&user.Username,
 		&user.Email,
 		&user.PasswordHash,
 		&user.Salt,
@@ -207,11 +243,12 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 func (r *userRepository) Update(ctx context.Context, user *models.User) error {
 	query := `
 		UPDATE users 
-		SET email = $2, password_hash = $3, salt = $4, updated_at = $5
+		SET username = $2, email = $3, password_hash = $4, salt = $5, updated_at = $6
 		WHERE id = $1`
 
 	cmdTag, err := r.db.Exec(ctx, query,
 		user.ID,
+		user.Username,
 		user.Email,
 		user.PasswordHash,
 		user.Salt,
