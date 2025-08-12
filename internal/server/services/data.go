@@ -67,11 +67,6 @@ type DataResponse struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
-// ListDataRequest представляет запрос на получение списка данных
-type ListDataRequest struct {
-	Type *models.DataType `json:"type,omitempty"`
-}
-
 // Create создает новые данные пользователя
 func (s *DataService) Create(ctx context.Context, userID string, req CreateDataRequest) (*DataResponse, error) {
 	if !s.isValidDataType(req.Type) {
@@ -167,7 +162,7 @@ func (s *DataService) GetByID(ctx context.Context, userID, dataID string) (*Data
 }
 
 // List получает список данных пользователя
-func (s *DataService) List(ctx context.Context, userID string, req ListDataRequest) ([]*DataResponse, error) {
+func (s *DataService) List(ctx context.Context, userID string) ([]*DataResponse, error) {
 	uID, err := uuid.Parse(userID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user ID: %w", err)
