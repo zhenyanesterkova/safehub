@@ -301,9 +301,9 @@ type dataRepository struct {
 	db dbInterface
 }
 
-func (r *dataRepository) Create(ctx context.Context, data *models.DataItem) error {
+func (r *dataRepository) Create(ctx context.Context, data *models.DataItem) (*models.DataItem, error) {
 	query := `
-		INSERT INTO data_items (user_id, name, type, metadata, created_at, updated_at, version)
+		INSERT INTO data_items (user_id, name, type, data, metadata, created_at, updated_at, version)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id`
 
@@ -319,10 +319,10 @@ func (r *dataRepository) Create(ctx context.Context, data *models.DataItem) erro
 	).Scan(&data.ID)
 
 	if err != nil {
-		return fmt.Errorf("failed to create data item: %w", err)
+		return nil, fmt.Errorf("failed to create data item: %w", err)
 	}
 
-	return nil
+	return data, nil
 }
 
 func (r *dataRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.DataItem, error) {
@@ -534,14 +534,15 @@ type syncRepository struct {
 
 func (r *syncRepository) CreateEvent(ctx context.Context, event *models.SyncEvent) error {
 	query := `
-		INSERT INTO sync_events (user_id, data_id, event_type, timestamp, data_version)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO sync_events (user_id, data_id, event_type, client_id, timestamp, data_version)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id`
 
 	err := r.db.QueryRow(ctx, query,
 		event.UserID,
 		event.DataID,
 		event.Action,
+		event.ClientID,
 		event.Created,
 		event.Version,
 	).Scan(&event.ID)
@@ -555,7 +556,7 @@ func (r *syncRepository) CreateEvent(ctx context.Context, event *models.SyncEven
 
 func (r *syncRepository) GetEventsAfter(ctx context.Context, userID uuid.UUID, afterEventID uuid.UUID) ([]*models.SyncEvent, error) {
 	query := `
-		SELECT id, user_id, data_id, event_type, timestamp, data_version
+		SELECT id, user_id, data_id, event_type, client_id, timestamp, data_version
 		FROM sync_events 
 		WHERE user_id = $1 AND id > $2
 		ORDER BY timestamp ASC`
@@ -575,6 +576,7 @@ func (r *syncRepository) GetEventsAfter(ctx context.Context, userID uuid.UUID, a
 			&event.UserID,
 			&event.DataID,
 			&event.Action,
+			&event.ClientID,
 			&event.Created,
 			&event.Version,
 		)
@@ -617,7 +619,7 @@ func (r *syncRepository) DeleteOldEvents(ctx context.Context, before time.Time) 
 
 func (r *syncRepository) GetEventsByDataID(ctx context.Context, userID uuid.UUID, dataID uuid.UUID) ([]*models.SyncEvent, error) {
 	query := `
-		SELECT id, user_id, data_id, event_type, timestamp, data_version
+		SELECT id, user_id, data_id, event_type, client_id, timestamp, data_version
 		FROM sync_events 
 		WHERE user_id = $1 AND data_id = $2
 		ORDER BY timestamp ASC`
@@ -637,6 +639,7 @@ func (r *syncRepository) GetEventsByDataID(ctx context.Context, userID uuid.UUID
 			&event.UserID,
 			&event.DataID,
 			&event.Action,
+			&event.ClientID,
 			&event.Created,
 			&event.Version,
 		)

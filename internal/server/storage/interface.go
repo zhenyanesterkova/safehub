@@ -35,7 +35,7 @@ type UserRepository interface {
 // DataRepository определяет интерфейс для работы с данными пользователей
 type DataRepository interface {
 	// Create создает новый элемент данных
-	Create(ctx context.Context, data *models.DataItem) error
+	Create(ctx context.Context, data *models.DataItem) (*models.DataItem, error)
 
 	// GetByID получает элемент данных по ID
 	GetByID(ctx context.Context, id uuid.UUID) (*models.DataItem, error)
