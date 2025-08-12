@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -43,6 +42,7 @@ type AuthService struct {
 	tokenTTL   time.Duration
 	refreshTTL time.Duration
 	crypto     *crypto.CryptoService
+	log        *LogService
 }
 
 // NewAuthService создает новый экземпляр AuthService
@@ -52,6 +52,7 @@ func NewAuthService(
 	tokenTTL,
 	refreshTTL time.Duration,
 	cryptoSvc *crypto.CryptoService,
+	log *LogService,
 ) *AuthService {
 	return &AuthService{
 		userRepo:   userRepo,
@@ -59,6 +60,7 @@ func NewAuthService(
 		tokenTTL:   tokenTTL,
 		refreshTTL: refreshTTL,
 		crypto:     cryptoSvc,
+		log:        log,
 	}
 }
 
@@ -145,7 +147,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*TokenRespon
 
 	user.LastLoginAt = time.Now()
 	if err := s.userRepo.UpdateLastLoginAt(ctx, user.ID, user.LastLoginAt); err != nil {
-		log.Printf("Warning: failed to update last login time: %v", err)
+		s.log.Log.Warningf("Warning: failed to update last login time: %v", err)
 	}
 
 	return s.generateTokens(user)

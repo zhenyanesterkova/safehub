@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,16 +23,19 @@ var (
 type DataService struct {
 	dataRepo storage.DataRepository
 	syncRepo storage.SyncRepository
+	log      *LogService
 }
 
 // NewDataService создает новый экземпляр DataService
 func NewDataService(
 	dataRepo storage.DataRepository,
 	syncRepo storage.SyncRepository,
+	log *LogService,
 ) *DataService {
 	return &DataService{
 		dataRepo: dataRepo,
 		syncRepo: syncRepo,
+		log:      log,
 	}
 }
 
@@ -121,7 +123,7 @@ func (s *DataService) Create(ctx context.Context, userID string, req CreateDataR
 	}
 
 	if err := s.syncRepo.CreateEvent(ctx, syncEvent); err != nil {
-		log.Printf("Warning: failed to create sync event: %v", err)
+		s.log.Log.Warningf("Warning: failed to create sync event: %v", err)
 	}
 
 	resp, err := s.modelToResponse(dataItem)
@@ -248,7 +250,7 @@ func (s *DataService) Update(ctx context.Context, userID, dataID string, req Upd
 	}
 
 	if err := s.syncRepo.CreateEvent(ctx, syncEvent); err != nil {
-		log.Printf("Warning: failed to create sync event: %v", err)
+		s.log.Log.Warningf("Warning: failed to create sync event: %v", err)
 	}
 
 	resp, err := s.modelToResponse(dataItem)
@@ -296,7 +298,7 @@ func (s *DataService) Delete(ctx context.Context, userID, dataID string) error {
 	}
 
 	if err := s.syncRepo.CreateEvent(ctx, syncEvent); err != nil {
-		log.Printf("Warning: failed to create sync event: %v", err)
+		s.log.Log.Warningf("Warning: failed to create sync event: %v", err)
 	}
 
 	return nil
