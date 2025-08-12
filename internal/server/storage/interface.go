@@ -13,6 +13,9 @@ type UserRepository interface {
 	// Create создает нового пользователя
 	Create(ctx context.Context, user *models.User) error
 
+	// GetByEmail получает пользователя по логину
+	GetByUsername(ctx context.Context, username string) (*models.User, error)
+
 	// GetByEmail получает пользователя по email
 	GetByEmail(ctx context.Context, email string) (*models.User, error)
 
