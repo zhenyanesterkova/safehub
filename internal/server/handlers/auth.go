@@ -12,11 +12,13 @@ var (
 	StatusInternalServerError = "something went wrong on the server..."
 )
 
+// AuthHandler обрабатывает запросы аутентификации и авторизации
 type AuthHandler struct {
 	authService *services.AuthService
 	logger      *services.LogService
 }
 
+// NewAuthHandler создает новый экземпляр AuthHandler
 func NewAuthHandler(
 	authService *services.AuthService,
 	logger *services.LogService,
@@ -27,6 +29,18 @@ func NewAuthHandler(
 	}
 }
 
+// Register регистрирует нового пользователя в системе
+// @Summary Регистрация нового пользователя
+// @Description Создает нового пользователя и возвращает JWT токены для аутентификации
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body services.RegisterRequest true "Данные для регистрации"
+// @Success 201 {object} services.TokenResponse "Успешная регистрация с JWT токенами"
+// @Failure 400 {string} "Некорректный формат запроса"
+// @Failure 409 {string} "Пользователь уже существует"
+// @Failure 500 {string} "Внутренняя ошибка сервера"
+// @Router /api/v1/auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req services.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -56,6 +70,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Login аутентифицирует пользователя по логину и паролю
+// @Summary Аутентификация пользователя
+// @Description Проверяет учетные данные пользователя и возвращает JWT токены
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body services.LoginRequest true "Учетные данные пользователя"
+// @Success 200 {object} services.TokenResponse "Успешная аутентификация с JWT токенами"
+// @Failure 400 {string} "Некорректный формат запроса"
+// @Failure 401 {string} "Неверные учетные данные"
+// @Failure 500 {string} "Внутренняя ошибка сервера"
+// @Router /api/v1/auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req services.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -85,6 +111,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Refresh обновляет access токен используя refresh токен
+// @Summary Обновление access токена
+// @Description Обновляет истекший access токен используя действующий refresh токен
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body services.RefreshRequest true "Refresh токен для обновления"
+// @Success 200 {object} services.TokenResponse "Новые JWT токены"
+// @Failure 400 {string} "Некорректный формат запроса"
+// @Failure 401 {string} "Недействительный refresh токен"
+// @Failure 500 {string} "Внутренняя ошибка сервера"
+// @Router /api/v1/auth/refresh [post]
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req services.RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
